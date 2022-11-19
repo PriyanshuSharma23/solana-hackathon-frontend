@@ -1,8 +1,12 @@
-const BASE_URL =
-  "https://3937-2409-4050-2e00-b6e6-e40d-88ac-e0a2-245f.ngrok.io";
-import { useEffect } from "react";
+const BASE_URL = "https://2af2-2409-4050-2e00-b6e6-4d40-1338-a11-4847.ngrok.io";
 import sol from "./assets/sol.svg";
 import { useQuery } from "react-query";
+import { toast } from "react-toastify";
+import { DisplayCard } from "./DisplayCard";
+import { useState } from "react";
+import { Buffer } from "buffer";
+
+window.Buffer = Buffer;
 
 function numberShorten(num) {
   // return 2k for 2000, 2.5k for 2500, 2.5m for 2500000, 2.5b for 2500000000
@@ -18,9 +22,30 @@ function numberShorten(num) {
   return (num / 1000000000).toFixed(1) + "b";
 }
 
+function copyToClipboard(text) {
+  // navigator clipboard api needs a secure context (https)
+  if (navigator.clipboard && window.isSecureContext) {
+    // navigator clipboard api method'
+
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard", {
+      position: "bottom-right",
+      theme: "colored",
+      // time 0.1s
+      autoClose: 200,
+      hideProgressBar: true,
+    });
+  }
+}
+
 export const App = () => {
+  const [selectedCard, setSelectedCard] = useState(null);
+
   const cardsQuery = useQuery(["cards"], () => fetchCards());
   const totalDonosQuery = useQuery(["totalDonos"], () => fetchTotalDonos());
+  const topDonationsQuery = useQuery(["topDonations"], () =>
+    fetchTopDonations()
+  );
 
   const fetchCards = async () => {
     console.log("fetching cards");
@@ -35,10 +60,18 @@ export const App = () => {
     console.log("fetching total coins donated");
     const res = await fetch(`${BASE_URL}/total`);
     const data = await res.json();
-
     const { total } = data;
-
     return total;
+  };
+
+  const fetchTopDonations = async () => {
+    console.log("fetching top donations");
+    const res = await fetch(`${BASE_URL}/transactions`);
+    const data = await res.json();
+
+    console.log(data);
+
+    return data;
   };
 
   return (
@@ -61,25 +94,48 @@ export const App = () => {
           </div>
           <div className="stat-title">Total donations</div>
           <div className="stat-value text-secondary">
-            {!totalDonosQuery.isLoading ? totalDonosQuery.data : "--"}
+            {totalDonosQuery.isLoading || totalDonosQuery.isError
+              ? "--"
+              : numberShorten(totalDonosQuery.data)}
           </div>
         </div>
       </nav>
 
       <hr />
 
-      <h2 className="pt-8 text-4xl pb-4 text-white">Top Fundraisers</h2>
+      <h2 className="pt-8 text-4xl pb-4 text-white first-letter:text-purple-500 first-letter:font-semibold">
+        Top Fundraisers
+      </h2>
 
       <div className="flex space-x-4 overflow-scroll">
-        <Card query={cardsQuery} />
+        <Card query={cardsQuery} setSelectedCard={setSelectedCard} />
+      </div>
+
+      <h2 className="pt-16 text-4xl pb-4 text-white first-letter:text-purple-500 first-letter:font-semibold">
+        Top Donations
+      </h2>
+
+      <Table query={topDonationsQuery} />
+
+      {/* Put this part before </body> tag */}
+      <input type="checkbox" id="my-modal" className="modal-toggle" />
+      <div className="modal">
+        <div className="modal-box">
+          <DisplayCard card={selectedCard} />
+          <div className="modal-action">
+            <label htmlFor="my-modal" className="btn">
+              Close
+            </label>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-const Card = ({ query }) => {
+const Card = ({ query, setSelectedCard }) => {
   let cards = [];
-  if (query.isLoading) {
+  if (query.isLoading || query.isError) {
     for (let i = 0; i < 3; i++) {
       cards.push(
         <div
@@ -88,14 +144,14 @@ const Card = ({ query }) => {
         >
           <figure className="h-[225px] bg-primary/70"></figure>
           <div className="card-body">
-            <div class="flex-1 space-y-6 py-1">
-              <div class="h-2 bg-primary/70 rounded"></div>
-              <div class="space-y-3">
-                <div class="grid grid-cols-3 gap-4">
-                  <div class="h-2 bg-primary/70 rounded col-span-2"></div>
-                  <div class="h-2 bg-primary/70 rounded col-span-1"></div>
+            <div className="flex-1 space-y-6 py-1">
+              <div className="h-2 bg-primary/70 rounded"></div>
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="h-2 bg-primary/70 rounded col-span-2"></div>
+                  <div className="h-2 bg-primary/70 rounded col-span-1"></div>
                 </div>
-                <div class="h-2 bg-primary/70 rounded"></div>
+                <div className="h-2 bg-primary/70 rounded"></div>
               </div>
             </div>
           </div>
@@ -123,7 +179,17 @@ const Card = ({ query }) => {
             <img className="object-cover" src={card.image_link} alt="" />
           </figure>
           <div className="card-body">
-            <h2 className="card-title">{card.name}</h2>
+            <h2 className="card-title flex justify-between items-center">
+              {card.name}
+              <div className="text-lg flex items-center">
+                {card.current}
+                <img
+                  src={sol}
+                  alt="solana"
+                  className="inline-block ml-2 w-4 h-4 stroke-current"
+                />
+              </div>
+            </h2>
             <p>{card.description}</p>
             <div className="flex justify-between items-center">
               <progress
@@ -131,7 +197,16 @@ const Card = ({ query }) => {
                 value={card.current}
                 max={card.target}
               ></progress>
-              <button className="btn btn-primary">Donate</button>
+              {/* The button to open modal */}
+              <label
+                htmlFor="my-modal"
+                className="btn btn-primary"
+                onClick={() => {
+                  setSelectedCard(card);
+                }}
+              >
+                Donate
+              </label>
             </div>
           </div>
         </div>
@@ -140,4 +215,91 @@ const Card = ({ query }) => {
   }
 
   return cards;
+};
+
+const Table = ({ query }) => {
+  let rows = [];
+
+  if (query.isLoading || query.isError) {
+    for (let i = 0; i < 5; i++) {
+      rows.push(
+        <tr key={i} className="animate-pulse">
+          <td>--</td>
+          <td>--</td>
+          <td>--</td>
+          <td>--</td>
+          <td>--</td>
+          <td>--</td>
+        </tr>
+      );
+    }
+  } else {
+    rows = query.data;
+
+    rows = rows.map((row, i) => {
+      return (
+        <tr key={i}>
+          <th>{i + 1}</th>
+          <td className="flex space-x-2 items-center">
+            {row.amount}
+            <img
+              src={sol}
+              alt="solana"
+              className="inline-block ml-2 w-4 h-4 stroke-current"
+            />
+          </td>
+          <td
+            onClick={() => {
+              copyToClipboard(row.from_wallet);
+            }}
+            className="max-w-[100px] text-ellipsis overflow-hidden"
+          >
+            {row.from_wallet}
+          </td>
+          <td
+            onClick={() => {
+              copyToClipboard(row.to_wallet);
+            }}
+            className="max-w-[100px] text-ellipsis overflow-hidden"
+          >
+            {row.to_wallet}
+          </td>
+          <td className="max-w-[100px] text-ellipsis overflow-hidden">
+            {row.signature}
+          </td>
+          <td className="max-w-[100px] text-ellipsis overflow-hidden">
+            {row.timestamp}
+          </td>
+        </tr>
+      );
+    });
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="table table-compact w-full">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Amount</th>
+            <th>from</th>
+            <th>to</th>
+            <th>signature</th>
+            <th>time</th>
+          </tr>
+        </thead>
+        <tbody>{rows}</tbody>
+        <tfoot>
+          <tr>
+            <th></th>
+            <th>Amount</th>
+            <th>from</th>
+            <th>to</th>
+            <th>signature</th>
+            <th>time</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
 };
