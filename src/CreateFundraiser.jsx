@@ -2,6 +2,7 @@ import { BASE_URL } from "./App";
 import { useRef } from "react";
 import { toast } from "react-toastify";
 import { LoadingSpinner } from "./LoadingSpinner";
+import { useState } from "react";
 
 export const FundRaiser = ({ publicId }) => {
   const nameRef = useRef(null);
