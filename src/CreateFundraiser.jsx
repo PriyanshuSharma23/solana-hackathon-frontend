@@ -1,6 +1,7 @@
 import { BASE_URL } from "./App";
 import { useRef } from "react";
 import { toast } from "react-toastify";
+import { LoadingSpinner } from "./LoadingSpinner";
 
 export const FundRaiser = ({ publicId }) => {
   const nameRef = useRef(null);
@@ -12,8 +13,11 @@ export const FundRaiser = ({ publicId }) => {
   const preferred_4Ref = useRef(null);
   const targetRef = useRef(null);
 
+  const [loading, setLoading] = useState(false);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
 
     // console.log(e.target);
 
@@ -57,10 +61,12 @@ export const FundRaiser = ({ publicId }) => {
 
       toast.success("Fundraiser created successfully");
       // reload
-      window.location.reload();
     } catch (error) {
       console.log(error);
       toast.error("Something went wrong");
+    } finally {
+      setLoading(false);
+      window.location.reload();
     }
   };
   return (
@@ -202,6 +208,7 @@ export const FundRaiser = ({ publicId }) => {
             }}
             className="btn btn-accent"
           >
+            {loading ? <LoadingSpinner /> : "Create"}
             Create
           </button>
         </div>

@@ -3,9 +3,11 @@ import { BASE_URL } from "./App";
 import { sendTransaction } from "./utils";
 import { useMutation } from "react-query";
 import { queryClient } from "./intermediate";
+import { LoadingSpinner } from "./LoadingSpinner";
 
 export const DisplayCard = ({ card }) => {
   const [amount, setAmount] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   const ref = useRef(null);
 
@@ -112,6 +114,7 @@ export const DisplayCard = ({ card }) => {
           <button
             className="btn btn-accent"
             onClick={async () => {
+              setLoading(true);
               try {
                 sendTransaction(card.wallet, amount).then((tx) => {
                   console.log(tx);
@@ -119,10 +122,13 @@ export const DisplayCard = ({ card }) => {
                     window.location.reload();
                   });
                 });
-              } catch (e) {}
+              } catch (e) {
+              } finally {
+                setLoading(false);
+              }
             }}
           >
-            Donate
+            {loading ? <LoadingSpinner /> : <>Donate</>}
           </button>
         </label>
       </div>
