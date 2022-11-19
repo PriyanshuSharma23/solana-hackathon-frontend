@@ -89,5 +89,12 @@ export const sendTransaction = async (to, amt) => {
 
   await connection.confirmTransaction(txid);
 
-  console.log("txid", txid);
+  // from to amt timestamp signature
+  return {
+    from_wallet: res.publicKey.toString(),
+    to_wallet: to,
+    amount: amt,
+    timestamp: Date.now(),
+    signature: txid,
+  };
 };

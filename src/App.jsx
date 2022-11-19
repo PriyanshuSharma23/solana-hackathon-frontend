@@ -1,11 +1,13 @@
-const BASE_URL = "https://2af2-2409-4050-2e00-b6e6-4d40-1338-a11-4847.ngrok.io";
+export const BASE_URL = "https://solcrowd.herokuapp.com";
 import sol from "./assets/sol.svg";
-import { useQuery } from "react-query";
+import phantom from "./assets/phantom-logo.svg";
+import { useQuery, QueryClient, QueryClientProvider } from "react-query";
 import { toast } from "react-toastify";
 import { DisplayCard } from "./DisplayCard";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Buffer } from "buffer";
-
+import { FundRaiser } from "./CreateFundraiser";
+import { ToastContainer } from "react-toastify";
 window.Buffer = Buffer;
 
 function numberShorten(num) {
@@ -38,13 +40,27 @@ function copyToClipboard(text) {
   }
 }
 
+async function connectSolana() {
+  if (window.solana) {
+    const { publicKey } = await window.solana.connect();
+    return publicKey;
+  }
+
+  return null;
+}
+
 export const App = () => {
   const [selectedCard, setSelectedCard] = useState(null);
+
+  const [publicKey, setPublicKey] = useState("");
 
   const cardsQuery = useQuery(["cards"], () => fetchCards());
   const totalDonosQuery = useQuery(["totalDonos"], () => fetchTotalDonos());
   const topDonationsQuery = useQuery(["topDonations"], () =>
     fetchTopDonations()
+  );
+  const getOrganizationQuery = useQuery(["getOrganization"], () =>
+    fetchOrganization()
   );
 
   const fetchCards = async () => {
@@ -74,62 +90,118 @@ export const App = () => {
     return data;
   };
 
+  const fetchOrganization = async () => {
+    const res = await fetch(`${BASE_URL}/organizations`);
+    const data = await res.json();
+
+    console.log(data);
+
+    return data;
+  };
+
+  useEffect(() => {
+    const x = async () => {
+      const publicKey = await connectSolana();
+      if (publicKey) {
+        setPublicKey(publicKey);
+      }
+    };
+
+    window.addEventListener("load", x);
+
+    return () => {
+      window.removeEventListener("load", x);
+    };
+  }, []);
+
   return (
-    <div className="p-4">
-      <nav className="p-4 flex justify-between">
-        <div className="">
-          <h1 className="font-poppins text-6xl font-bold text-primary">
-            RETHINK
-          </h1>
-          <h2 className="text-4xl font-semibold">Charity Redefined</h2>
+    <>
+      <div className="p-4">
+        <nav className="p-4 flex justify-between">
+          <div className="">
+            <h1 className="font-poppins text-6xl font-bold text-primary">
+              RETHINK
+            </h1>
+            <h2 className="text-4xl font-semibold">Charity Redefined</h2>
+          </div>
+          <div className="flex space-x-2 ">
+            {publicKey === "" ? (
+              <button
+                className="w-max flex flex-col bg-neutral  justify-center px-4 rounded"
+                onClick={async () => {
+                  const publicKey = await connectSolana();
+                  if (publicKey) {
+                    setPublicKey(publicKey);
+                  }
+                }}
+              >
+                <div>Connect to</div>
+                <div>
+                  <img src={phantom} alt="phantom logo" />
+                </div>
+              </button>
+            ) : (
+              <label
+                htmlFor="my-modal-3"
+                className="w-max flex flex-col bg-neutral  justify-center px-4 rounded"
+              >
+                Create <br />
+                <span className="text-xl font-bold">Fundraiser</span>
+              </label>
+            )}
+            <div className="stat w-fit bg-neutral rounded">
+              <div className="stat-figure text-secondary">
+                <img
+                  src={sol}
+                  alt="solana"
+                  className="inline-block w-8 h-8 stroke-current"
+                />
+              </div>
+              <div className="stat-title">Total donations</div>
+              <div className="stat-value text-secondary">
+                {totalDonosQuery.isLoading || totalDonosQuery.isError
+                  ? "--"
+                  : numberShorten(totalDonosQuery.data)}
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        <hr />
+
+        <h2 className="pt-8 text-4xl pb-4 text-white first-letter:text-purple-500 first-letter:font-semibold">
+          Top Fundraisers
+        </h2>
+
+        <div className="flex space-x-4 overflow-scroll">
+          <Card query={cardsQuery} setSelectedCard={setSelectedCard} />
         </div>
 
-        <div className="stat w-fit bg-neutral rounded">
-          <div className="stat-figure text-secondary">
-            <img
-              src={sol}
-              alt="solana"
-              className="inline-block w-8 h-8 stroke-current"
-            />
-          </div>
-          <div className="stat-title">Total donations</div>
-          <div className="stat-value text-secondary">
-            {totalDonosQuery.isLoading || totalDonosQuery.isError
-              ? "--"
-              : numberShorten(totalDonosQuery.data)}
+        <h2 className="pt-16 text-4xl pb-4 text-white first-letter:text-purple-500 first-letter:font-semibold">
+          Top Donations
+        </h2>
+
+        <Table query={topDonationsQuery} />
+
+        {/* Put this part before </body> tag */}
+        <input type="checkbox" id="my-modal" className="modal-toggle" />
+        <div className="modal">
+          <div className="modal-box">
+            <DisplayCard card={selectedCard} />
           </div>
         </div>
-      </nav>
 
-      <hr />
-
-      <h2 className="pt-8 text-4xl pb-4 text-white first-letter:text-purple-500 first-letter:font-semibold">
-        Top Fundraisers
-      </h2>
-
-      <div className="flex space-x-4 overflow-scroll">
-        <Card query={cardsQuery} setSelectedCard={setSelectedCard} />
+        {/* Put this part before </body> tag */}
+        <input type="checkbox" id="my-modal-3" className="modal-toggle" />
+        <div className="modal">
+          <div className="modal-box relative">
+            <FundRaiser />
+          </div>
+        </div>
       </div>
 
-      <h2 className="pt-16 text-4xl pb-4 text-white first-letter:text-purple-500 first-letter:font-semibold">
-        Top Donations
-      </h2>
-
-      <Table query={topDonationsQuery} />
-
-      {/* Put this part before </body> tag */}
-      <input type="checkbox" id="my-modal" className="modal-toggle" />
-      <div className="modal">
-        <div className="modal-box">
-          <DisplayCard card={selectedCard} />
-          <div className="modal-action">
-            <label htmlFor="my-modal" className="btn">
-              Close
-            </label>
-          </div>
-        </div>
-      </div>
-    </div>
+      <ToastContainer />
+    </>
   );
 };
 

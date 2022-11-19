@@ -1,12 +1,43 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { BASE_URL } from "./App";
 import { sendTransaction } from "./utils";
+import { useMutation } from "react-query";
+import { queryClient } from "./intermediate";
 
 export const DisplayCard = ({ card }) => {
   const [amount, setAmount] = useState(0);
 
+  const ref = useRef(null);
+
+  //   const mutate = useMutation(
+  //     async (data) => {
+  //       await postData(data);
+  //     },
+  //     {
+  //       onSuccess: () => {
+  //         setAmount(0);
+  //         //   invalidate card, totalDonos topDonations
+  //         queryClient.invalidateQueries(["cards"]);
+  //         queryClient.invalidateQueries(["totalDonos"]);
+  //         queryClient.invalidateQueries(["topDonations"]);
+  //       },
+  //     }
+  //   );
+
   if (card == null) {
     return null;
   }
+
+  const postData = async (data) => {
+    const response = await fetch(`${BASE_URL}/donate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+    return response.json();
+  };
 
   return (
     <div className="">
@@ -71,13 +102,40 @@ export const DisplayCard = ({ card }) => {
           <input
             type="text"
             placeholder="0.01"
+            max={3}
             className="input input-bordered w-full font-bold"
             value={amount != 0 ? amount.toString() : ""}
             onChange={(e) => {
               setAmount(Number(e.target.value));
             }}
           />
-          <button className="btn btn-accent">Donate</button>
+          <button
+            className="btn btn-accent"
+            onClick={async () => {
+              try {
+                sendTransaction(card.wallet, amount).then((tx) => {
+                  console.log(tx);
+                  postData(tx).then(() => {
+                    window.location.reload();
+                  });
+                });
+              } catch (e) {}
+            }}
+          >
+            Donate
+          </button>
+        </label>
+      </div>
+
+      <div className="modal-action">
+        <label
+          htmlFor="my-modal"
+          className="btn"
+          onClick={() => {
+            setAmount(0);
+          }}
+        >
+          Close
         </label>
       </div>
     </div>
